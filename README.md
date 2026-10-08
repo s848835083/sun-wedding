@@ -6,7 +6,7 @@
 index.html        页面本体（文案直接改这里）
 photos/groom.jpg  新郎头像（360×360，已从合照裁好）
 photos/bride.jpg  新娘头像
-bgm.mp3           背景音乐：Epic Hollywood Trailer — Good_B_Music（Pixabay Content License，免费可用）
+bgm.mp3           背景音乐：《囚笼》— 爱在墨尔本（汽水音乐试听片段 60 秒，版权归原作者）
 pay-wechat.png    微信收款码（自备；缺失时「随份子」按钮自动隐藏）
 ```
 

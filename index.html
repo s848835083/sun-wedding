@@ -38,6 +38,10 @@ button{cursor:pointer;border:0;background:none}
 .icon-btn.off{opacity:.4;text-decoration:line-through}
 .music svg{width:18px;height:18px}
 .music.on svg{animation:spin 3s linear infinite}
+.bar-in{position:relative}
+.music-tip{position:absolute;right:var(--g);top:46px;padding:2px 10px;border-radius:99px;font-size:12px;line-height:20px;white-space:nowrap;color:#fff;background:rgba(208,22,31,.92);box-shadow:0 2px 10px rgba(0,0,0,.4);animation:pulse 1.6s ease-in-out infinite}
+.music-tip::before{content:"";position:absolute;right:12px;top:-5px;border:5px solid transparent;border-top:0;border-bottom-color:rgba(208,22,31,.92)}
+.poster .music-tip{display:none!important}
 .dm{position:fixed;left:0;right:0;top:calc(54px + env(safe-area-inset-top));height:22vh;z-index:50;pointer-events:none;overflow:hidden}
 .dm.off{display:none}
 .dm span{position:absolute;left:100%;white-space:nowrap;font-size:14px;font-weight:700;line-height:24px;color:#fff;text-shadow:0 0 2px #000,0 1px 2px #000;visibility:hidden;will-change:transform}
@@ -160,7 +164,7 @@ button{cursor:pointer;border:0;background:none}
 </head>
 <body>
 <div class="bgfx" aria-hidden="true"></div>
-<audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
+<audio id="bgm" src="bgm.mp3" loop autoplay preload="auto"></audio>
 
 <header class="bar">
   <div class="bar-in">
@@ -169,6 +173,7 @@ button{cursor:pointer;border:0;background:none}
     <button class="icon-btn music" id="musicBtn" type="button" aria-label="背景音乐开关">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
     </button>
+    <div class="music-tip" id="musicTip" hidden>🔊 轻触屏幕开启音乐</div>
   </div>
 </header>
 <div class="dm" id="dm" aria-hidden="true"></div>
@@ -291,26 +296,30 @@ button{cursor:pointer;border:0;background:none}
   $$('.seal-slot').forEach(function (el) { el.innerHTML = seal(); });
   if (/poster/.test(document.documentElement.className)) $$('img[data-src]').forEach(function (im) { im.src = im.getAttribute('data-src'); });
 
-  // ---------- 背景音乐：微信内尝试自动播放，否则首次触摸时播放 ----------
-  var bgm = $('#bgm'), mBtn = $('#musicBtn'), wantMusic = true;
+  // ---------- 背景音乐：默认开启。能自动播就自动播（微信用 JSBridge），被拦就在第一次触摸时播 ----------
+  var bgm = $('#bgm'), mBtn = $('#musicBtn'), mTip = $('#musicTip'), wantMusic = true;
   function playBgm() {
     if (bgm.error || !wantMusic) return;
     try { var p = bgm.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
   }
   bgm.addEventListener('play', function () { mBtn.classList.add('on'); });
   bgm.addEventListener('pause', function () { mBtn.classList.remove('on'); });
-  function noBgm() { mBtn.hidden = true; }
+  function noBgm() { mBtn.hidden = true; mTip.hidden = true; }
   bgm.addEventListener('error', noBgm);
   if (bgm.error) noBgm();
   function wxPlay() { WeixinJSBridge.invoke('getNetworkType', {}, playBgm); }
   if (window.WeixinJSBridge) wxPlay(); else document.addEventListener('WeixinJSBridgeReady', wxPlay, false);
-  function firstTouch() {
-    playBgm();
-    document.removeEventListener('touchstart', firstTouch);
-    document.removeEventListener('click', firstTouch);
-  }
-  document.addEventListener('touchstart', firstTouch, { passive: true });
-  document.addEventListener('click', firstTouch);
+  playBgm();
+  window.addEventListener('load', playBgm);
+  // 自动播放被浏览器拦下时：任意一次触摸/点击都重试，直到真正响起来
+  var UNLOCK = ['touchend', 'click', 'keydown'];
+  function unlock(e) { if (!mBtn.contains(e.target)) playBgm(); } // 点音乐按钮本身交给按钮自己切换
+  UNLOCK.forEach(function (t) { document.addEventListener(t, unlock, true); });
+  bgm.addEventListener('playing', function () {
+    mTip.hidden = true;
+    UNLOCK.forEach(function (t) { document.removeEventListener(t, unlock, true); });
+  });
+  setTimeout(function () { if (bgm.paused && wantMusic && !bgm.error) mTip.hidden = false; }, 1200);
   mBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     if (bgm.paused) { wantMusic = true; playBgm(); } else { wantMusic = false; bgm.pause(); }
